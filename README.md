@@ -1,6 +1,20 @@
 
 GoodLocation is a Location Library that gets users location given a Duration in milliseconds.
 
+        Add it in your root build.gradle at the end of repositories:
+
+        allprojects {
+                repositories {
+                    ...
+                    maven { url 'https://jitpack.io' }
+                }
+            }
+            
+        
+        dependencies {
+        	        implementation 'com.github.Karikari:goodlocation:0.02'
+        }
+
 How to
 
         GoodLocation goodLocation = new GoodLocation(this);
