@@ -1,5 +1,5 @@
 
-GoodLocation is a Location Library that gets users location given a Duration in milliseconds.
+GoodLocation is a Location Library that gets users location given a duration in minutes.
 
         Add it in your root build.gradle at the end of repositories:
 
@@ -12,33 +12,78 @@ GoodLocation is a Location Library that gets users location given a Duration in 
             
         
         dependencies {
-        	        implementation 'com.github.Karikari:goodlocation:0.02'
+            def current_version = "0.0.3"
+        	implementation 'com.github.Karikari:goodlocation:$current_version'
         }
 
-How to
-
-        GoodLocation goodLocation = new GoodLocation(this);
+   
         
         /*
-        * Set the duration you want location to update in millis
-        * Example 60000 mills = 1 minute
+        * Always instantiate this in your onCreate method
+        *
+        GoodLocation goodlocation = new GoodLocation(this);
+        
+        
+        /*
+        * Location start reading after 3 seconds for the automatic reading of locaion.
+        */
+        goodlocation.autoStartLocation(new GoodLocation.GoodLocationListener() {
+                    @Override
+                    public void onCurrenLocation(Location location) {
+                        Log.d(TAG, "Location is Auto: "+ location.getLatitude() + ", "+ location.getLongitude());
+                    }
+        
+                    @Override
+                    public void onError(String error) {
+                        Log.d(TAG, "AUTO error : "+ error);
+                    }
+          });
+          
+          
+          /*
+          * You can stop location by calling 
+          */
+           goodlocation.stopLocation();
+        
+        
+        /*
+        *  Duration is set in Minutes  2L
         *
         */
-        goodLocation.setLocationDuration(6000);
+        goodlocation.startDurationLocation(2L, new GoodLocation.GoodLocationDurationListener() {
         
-        goodLocation.startGoodLocationTimer(new GoodLocation.GoodLocationListenerTime() {
-            @Override
-            public void currentLocation(Location location) {
+                    @Override
+                    public void onCurrentLocation(Location location) {
+                        Log.d(TAG, "Location is Duration: "+ location.getLatitude() + ", "+ location.getLongitude());
+        
+                    }
+        
+                    @Override
+                    public void onDurationLeft(Long time_left) {
+                        Log.d(TAG, "Time Left "+ time_left);
+        
+                    }
+        
+                    @Override
+                    public void onDurationFinished() {
+                        Log.d(TAG, "Finished");
+                    }
+        
+                    @Override
+                    public void onError(String error) {
+                        Log.d(TAG, "Duration Error : "+ error);
+        
+                    }
+                });
                 
-            }
-
-            @Override
-            public void currentLocationTimer(Long timer) {
-
-            }
-
-            @Override
-            public void onLocationTimerFinish() {
-
-            }
-        });
+          /*
+          * You can stop duration location by calling
+          */
+          goodlocation.stopDurationLocation()
+          
+          /*
+          * Get Last Known Location by calling
+          */
+          goodlocation.getLastKnownLocation()
+          
+          

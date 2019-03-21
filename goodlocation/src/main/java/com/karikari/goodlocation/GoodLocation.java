@@ -139,7 +139,6 @@ public class GoodLocation implements LocationListener,
 
     public void startDurationLocation(Long minutes, GoodLocationDurationListener listenerTime) {
         this.DURATION = TimeUnit.MINUTES.toMillis(minutes);
-
         this.mLocationDurationListener = listenerTime;
         startLocationUpdates();
         startLocationTimer();
@@ -461,7 +460,7 @@ public class GoodLocation implements LocationListener,
     public interface GoodLocationDurationListener {
         void onCurrentLocation(Location location);
 
-        void onDurationLeft(Long timer);
+        void onDurationLeft(Long time_left);
 
         void onDurationFinished();
 
