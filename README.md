@@ -1,3 +1,4 @@
+[![](https://jitpack.io/v/Karikari/goodlocation.svg)](https://jitpack.io/#Karikari/goodlocation)
 
 GoodLocation is a Location Library that gets users location given a duration in minutes.
 
