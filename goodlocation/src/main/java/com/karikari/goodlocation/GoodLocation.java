@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Criteria;
 import android.location.Location;
@@ -12,6 +13,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
+import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -30,6 +32,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.maps.android.SphericalUtil;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -55,22 +58,19 @@ public class GoodLocation implements LocationListener,
     private LocationRequest mLocationRequest;
     private GoogleApiClient mGoogleApiClient;
     private LocationSettingsRequest mLocationSettingsRequest;
-    private Long LOCATION_TIMER = 0L;
-    public static final Long TIMER_INTERVAL = 1000L;
+    private Long DURATION = 0L;
 
 
     private LocationManager mLocationManager;
 
-    private CountDownTimer timer;
-
+    private CountDownTimer countDownTimer;
 
     /**
      * Represents a geographical location.
      */
     private Location mCurrentLocation;
 
-    private Location mLastKnwnLocation;
-
+    private Location mLastKnownLocation;
 
     /**
      * Tracks the status of the location updates request. Value changes when the boy presses the
@@ -84,7 +84,7 @@ public class GoodLocation implements LocationListener,
     protected String mLastUpdateTime;
 
     private GoodLocationListener mLocationListener;
-    private GoodLocationListenerTime mLocatoinTimeListener;
+    private GoodLocationDurationListener mLocationDurationListener;
     private Context ctx;
 
 
@@ -121,39 +121,40 @@ public class GoodLocation implements LocationListener,
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-                Log.d(TAG, "Start Location after" + LOCATION_TIMER);
                 startLocationUpdates();
-                if (LOCATION_TIMER != 0L) {
-                    startLocationTimer();
-                }
-
             }
         }, 3000);
     }
 
-    /*
-    * 
-    *
-    * */
-    public void autoStartGoodLocation(GoodLocationListener listener) {
-        this.mLocationListener =  listener;
+
+    public void autoStartLocation(GoodLocationListener listener) {
+        this.mLocationListener = listener;
         startAfter3sec();
     }
 
-    public void startGoodLocation(GoodLocationListener listener) {
+    public void startLocation(GoodLocationListener listener) {
         this.mLocationListener = listener;
         startLocationUpdates();
     }
 
-    public void startGoodLocationTimer(GoodLocationListenerTime listenerTime){
-        this.mLocatoinTimeListener = listenerTime;
+    public void startLocationTimer(Long minutes, GoodLocationDurationListener listenerTime) {
+        this.DURATION = TimeUnit.MINUTES.toMillis(minutes);
+        this.mLocationDurationListener = listenerTime;
         startLocationUpdates();
         startLocationTimer();
     }
 
-    public void cancelTimer(){
-            if(timer!=null)
-                timer.cancel();
+    public void stopLocation() {
+        stopLocationUpdates();
+    }
+
+    public void stopTimer() {
+        cancelTimer();
+    }
+
+    private void cancelTimer() {
+        if (countDownTimer != null)
+            countDownTimer.cancel();
     }
 
 
@@ -165,16 +166,17 @@ public class GoodLocation implements LocationListener,
         return this.mCurrentLocation;
     }
 
-    public Location getmLastKnwnLocation() {
-        return this.mLastKnwnLocation;
+
+    public Location getLastKnownLocation() {
+        return this.mLastKnownLocation;
     }
 
     public Long getmLastUpdateTime() {
         return this.mCurrentLocation.getTime();
     }
 
-    public void setLocationDuration(Long time_in_millis) {
-        this.LOCATION_TIMER = time_in_millis;
+    public void setLocationDuration(Long minutes) {
+        this.DURATION = TimeUnit.MINUTES.toMillis(minutes);
     }
 
     //step 1
@@ -214,15 +216,12 @@ public class GoodLocation implements LocationListener,
         result.setResultCallback(this);
     }
 
-    private void startLocationUpdates() {
-        goAndDetectLocation();
-    }
 
     @SuppressLint("MissingPermission")
-    private void goAndDetectLocation() {
+    private void startLocationUpdates() {
         Log.d(TAG, "Go and Detection Location Started :");
 
-        if(mGoogleApiClient.isConnected()){
+        if (mGoogleApiClient.isConnected()) {
             try {
                 LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this)
                         .setResultCallback(new ResultCallback<Status>() {
@@ -235,8 +234,16 @@ public class GoodLocation implements LocationListener,
                             }
                         });
             } catch (Exception e) {
-                Toast.makeText(ctx,  "", Toast.LENGTH_LONG).show();
-                Log.d(TAG, "Detect Location error  :"+e.getMessage());
+                Toast.makeText(ctx, e.getMessage(), Toast.LENGTH_LONG).show();
+                Log.d(TAG, "Detect Location error  :" + e.getMessage());
+
+                if(mLocationDurationListener!=null){
+                    mLocationDurationListener.onError(e.getMessage());
+                }
+
+                if(mLocationListener!=null){
+                    mLocationListener.onError(e.getMessage());
+                }
 
             }
         }
@@ -245,9 +252,9 @@ public class GoodLocation implements LocationListener,
     /**
      * Removes location updates from the FusedLocationApi.
      */
-    public void stopLocationUpdates() {
+    private void stopLocationUpdates() {
 
-        if(mGoogleApiClient.isConnected()){
+        if (mGoogleApiClient.isConnected()) {
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this
             ).setResultCallback(new ResultCallback<Status>() {
                 @Override
@@ -255,23 +262,16 @@ public class GoodLocation implements LocationListener,
                     mRequestingLocationUpdates = false;
                     //   setButtonsEnabledState();
                     checkLocationSettings();
-                    if (LOCATION_TIMER != 0L) {
-                        timer.cancel();
-                    }
                 }
             });
-            if(timer!=null){
-                timer.cancel();
-            }
         }
-
     }
 
     @SuppressLint("MissingPermission")
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        if (mLastKnwnLocation == null) {
-            mLastKnwnLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+        if (mLastKnownLocation == null) {
+            mLastKnownLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
         }
     }
 
@@ -295,19 +295,13 @@ public class GoodLocation implements LocationListener,
     @Override
     public void onLocationChanged(Location location) {
         mCurrentLocation = location;
-        //Log.d(TAG, location.getLatitude() + "," + location.getLongitude() + "," + location.getAccuracy());
         if (mLocationListener != null) {
-            mLocationListener.currenLocation(location);
-        } else {
-            //mLocationListener = (LocationListerner) this;
-            Log.d(TAG, "Location Listener is null");
+            mLocationListener.onCurrenLocation(location);
         }
 
-        if(mLocatoinTimeListener!=null){
+        if (mLocationDurationListener != null) {
             Log.d(TAG, location.getLatitude() + "," + location.getLongitude() + "," + location.getAccuracy());
-            mLocatoinTimeListener.currentLocation(location);
-        }else{
-            Log.d(TAG, "Location Timer Listener is null");
+            mLocationDurationListener.onCurrentLocation(location);
         }
     }
 
@@ -332,7 +326,7 @@ public class GoodLocation implements LocationListener,
             for (String s : providers) {
                 location = mLocationManager.getLastKnownLocation(s);
                 if (location != null) {
-                    mLastKnwnLocation = location;
+                    mLastKnownLocation = location;
                     break;
                 }
             }
@@ -346,7 +340,7 @@ public class GoodLocation implements LocationListener,
             for (String s : providers) {
                 location = mLocationManager.getLastKnownLocation(s);
                 if (location != null) {
-                    mLastKnwnLocation = location;
+                    mLastKnownLocation = location;
                     break;
                 }
 
@@ -354,24 +348,22 @@ public class GoodLocation implements LocationListener,
         }
     }
 
-    public float distance(double lat, double lng){
+    public float distance(double startLatitude, double startLongitude) {
         float[] results = new float[1];
-
-        if(mLastKnwnLocation!=null){
-            Location.distanceBetween(lat, lng, mLastKnwnLocation.getLatitude(), mLastKnwnLocation.getLongitude(), results);
+        if (mLastKnownLocation != null) {
+            Location.distanceBetween(startLatitude, startLongitude, mLastKnownLocation.getLatitude(), mLastKnownLocation.getLongitude(), results);
         }
-
         return results[0];
     }
 
-    public double distance2(double lat, double lng){
+    public double distance2(double lat, double lng) {
         /*
-        * Unit of Measurement is in Meters
-        * */
+         * Unit of Measurement is in Meters
+         * */
         LatLng fromlatlng = null;
         LatLng tolatlng = null;
-        if(mLastKnwnLocation!=null){
-            fromlatlng = new LatLng(mLastKnwnLocation.getLatitude(), mLastKnwnLocation.getLongitude());
+        if (mLastKnownLocation != null) {
+            fromlatlng = new LatLng(mLastKnownLocation.getLatitude(), mLastKnownLocation.getLongitude());
             tolatlng = new LatLng(lat, lng);
             return SphericalUtil.computeDistanceBetween(fromlatlng, tolatlng);
         }
@@ -379,31 +371,59 @@ public class GoodLocation implements LocationListener,
         return 0;
     }
 
+    public boolean isLocationEnabledGPS() {
+        LocationManager locationManager = null;
+        boolean gps_enabled = false;
+        try {
+            locationManager = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+            gps_enabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        } catch (Exception ex) {
+            //do nothing...
+        }
+
+        return gps_enabled;
+    }
+
+    public boolean isLocationEnabledNetWork() {
+        LocationManager locationManager = null;
+        boolean gps_enabled = false;
+        try {
+            locationManager = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+            gps_enabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        } catch (Exception ex) {
+            //do nothing...
+        }
+
+        return gps_enabled;
+    }
+
+    public void openLocationSettings(){
+        ctx.startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+    }
+
 
     private void startLocationTimer() {
-        //Log.d(TAG, "Time also started : ");
-
-        timer = new CountDownTimer(LOCATION_TIMER, TIMER_INTERVAL) {
-            @Override
-            public void onTick(long millisUntilFinished) {
-
-                if(mLocatoinTimeListener!=null){
-                    Log.d(TAG, "Timer Left : " + millisUntilFinished);
-                    mLocatoinTimeListener.currentLocationTimer(millisUntilFinished);
-                }else{
-                    Log.d(TAG, "Time Left : " + millisUntilFinished);
+        if (DURATION != 0) {
+            countDownTimer = new CountDownTimer(DURATION, 1000) {
+                @Override
+                public void onTick(long millisUntilFinished) {
+                    if (mLocationDurationListener != null) {
+                        mLocationDurationListener.onDurationLeft(TimeUnit.MILLISECONDS.toMinutes(millisUntilFinished));
+                    }
                 }
-            }
 
-            @Override
-            public void onFinish() {
-                stopLocationUpdates();
-                if(mLocatoinTimeListener!=null){
+                @Override
+                public void onFinish() {
+                    stopLocationUpdates();
                     cancelTimer();
-                    mLocatoinTimeListener.onLocationTimerFinish();
+                    if (mLocationDurationListener != null) {
+                        mLocationDurationListener.onDurationFinished();
+                    }
                 }
-            }
-        }.start();
+            }.start();
+        } else {
+            mLocationDurationListener.onError("Duration not set");
+        }
     }
 
     private void checkforpermissions() {
@@ -427,14 +447,19 @@ public class GoodLocation implements LocationListener,
 
 
     public interface GoodLocationListener {
-        void currenLocation(Location location);
+        void onCurrenLocation(Location location);
 
+        void onError(String error);
     }
 
-    public interface GoodLocationListenerTime{
-        void currentLocation(Location location);
-        void currentLocationTimer(Long timer);
-        void onLocationTimerFinish();
+    public interface GoodLocationDurationListener {
+        void onCurrentLocation(Location location);
+
+        void onDurationLeft(Long timer);
+
+        void onDurationFinished();
+
+        void onError(String error);
     }
 
 }
