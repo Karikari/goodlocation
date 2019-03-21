@@ -137,11 +137,17 @@ public class GoodLocation implements LocationListener,
         startLocationUpdates();
     }
 
-    public void startLocationTimer(Long minutes, GoodLocationDurationListener listenerTime) {
+    public void startDurationLocation(Long minutes, GoodLocationDurationListener listenerTime) {
         this.DURATION = TimeUnit.MINUTES.toMillis(minutes);
+
         this.mLocationDurationListener = listenerTime;
         startLocationUpdates();
         startLocationTimer();
+    }
+
+    public void stopDurationLocation(){
+        stopLocationUpdates();
+        cancelTimer();
     }
 
     public void stopLocation() {
@@ -408,7 +414,7 @@ public class GoodLocation implements LocationListener,
                 @Override
                 public void onTick(long millisUntilFinished) {
                     if (mLocationDurationListener != null) {
-                        mLocationDurationListener.onDurationLeft(TimeUnit.MILLISECONDS.toMinutes(millisUntilFinished));
+                        mLocationDurationListener.onDurationLeft(millisUntilFinished);
                     }
                 }
 
