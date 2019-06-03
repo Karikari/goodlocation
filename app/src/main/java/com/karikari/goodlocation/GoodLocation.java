@@ -24,6 +24,7 @@ import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
@@ -62,8 +63,6 @@ public class GoodLocation implements LocationListener,
     private LocationSettingsRequest mLocationSettingsRequest;
     private Long DURATION = 0L;
     private FusedLocationProviderClient fusedLocationClient;
-
-
 
     private LocationManager mLocationManager;
 
@@ -163,7 +162,7 @@ public class GoodLocation implements LocationListener,
 
     public void startLocation(GoodLocationListener listener) {
         this.mLocationListener = listener;
-        startLocationUpdates();
+        startAfter3sec();
     }
 
     public void startDurationLocation(Long minutes, GoodLocationDurationListener listenerTime) {
@@ -433,6 +432,28 @@ public class GoodLocation implements LocationListener,
         return gps_enabled;
     }
 
+    public boolean isLocationEnabled(){
+
+        LocationManager locationManager = null;
+        boolean gps_enabled = false;
+        try {
+            locationManager = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+            gps_enabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        } catch (Exception ex) {
+            //do nothing...
+        }
+
+        boolean network_enabled = false;
+        try {
+            locationManager = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+            network_enabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        } catch (Exception ex) {
+            //do nothing...
+        }
+
+        return gps_enabled || network_enabled;
+    }
+
     public void openLocationSettings(){
         ctx.startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
     }
@@ -482,9 +503,9 @@ public class GoodLocation implements LocationListener,
     }
 
 
+
     public interface GoodLocationListener {
         void onCurrenLocation(Location location);
-
         void onError(String error);
     }
 
@@ -497,5 +518,6 @@ public class GoodLocation implements LocationListener,
 
         void onError(String error);
     }
+
 
 }
