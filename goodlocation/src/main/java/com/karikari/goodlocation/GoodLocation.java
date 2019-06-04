@@ -69,7 +69,7 @@ public class GoodLocation implements LocationListener,
     private CountDownTimer countDownTimer;
 
     private Long LOCATION_INTERVAL = 5000L;
-    private Long FAST_LOCATON_INTERVAL = LOCATION_INTERVAL / 2;
+    private Long FAST_LOCATION_INTERVAL = LOCATION_INTERVAL / 2;
 
     /**
      * Represents a geographical location.
@@ -95,9 +95,7 @@ public class GoodLocation implements LocationListener,
 
     public GoodLocation(Context context, Long location_interval){
         LOCATION_INTERVAL = TimeUnit.SECONDS.toMillis(location_interval);
-        FAST_LOCATON_INTERVAL = LOCATION_INTERVAL / 2;
-        Log.d(TAG, "LOCATION INTERVAL "+ LOCATION_INTERVAL);
-        Log.d(TAG, "Fast LOCATION INTERVAL "+ FAST_LOCATON_INTERVAL);
+        FAST_LOCATION_INTERVAL = LOCATION_INTERVAL / 2;
         initialize(context);
 
     }
@@ -132,8 +130,8 @@ public class GoodLocation implements LocationListener,
 
         mLocationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
-        //setSingleLocation();
-        setGetLastKnownLocation();
+        setSingleLocation();
+        //setGetLastKnownLocation();
         //startAfter3secLastKnown();
     }
 
@@ -165,6 +163,7 @@ public class GoodLocation implements LocationListener,
             }
         }, 3000);
     }
+
 
     private void startAfter3sec() {
         new Handler().postDelayed(new Runnable() {
@@ -248,7 +247,7 @@ public class GoodLocation implements LocationListener,
     private void createLocationRequest() {
         mLocationRequest = new LocationRequest();
         mLocationRequest.setInterval(LOCATION_INTERVAL);
-        mLocationRequest.setFastestInterval(FAST_LOCATON_INTERVAL);
+        mLocationRequest.setFastestInterval(FAST_LOCATION_INTERVAL);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
     }
@@ -302,6 +301,13 @@ public class GoodLocation implements LocationListener,
             }
         } else {
             Log.d(TAG, "google Client not Connected");
+            if (mLocationDurationListener != null) {
+                mLocationDurationListener.onError("Google Client Connection Failed");
+            }
+
+            if (mLocationListener != null) {
+                mLocationListener.onError("Google Client Connection Failed");
+            }
         }
     }
 

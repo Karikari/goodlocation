@@ -37,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
 
         final List<LatLng> latLngs = new ArrayList<>();
 
-        String cordiinates = loadJSONFromAsset("cord.json");
+        String cordiinates = loadJSONFromAsset("cord_home.json");
         Log.d(TAG, "Cordinates : "+ cordiinates);
 
         List<Cordinate> cordinateList = new Gson().fromJson(cordiinates, new TypeToken<List<Cordinate>>() {
