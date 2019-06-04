@@ -32,7 +32,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        goodLocation = new GoodLocation(this);
+        goodLocation = new GoodLocation(this, 5L);
         final TextView textView = findViewById(R.id.text);
 
         final List<LatLng> latLngs = new ArrayList<>();
@@ -44,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
         }.getType());
 
         Log.d(TAG, "Cordinates Size: "+ cordinateList.size());
+        Log.d(TAG, "Last Know Location: "+ goodLocation.getLastKnownLocation().getLatitude());
 
         for(Cordinate cordinate : cordinateList){
             latLngs.add(new LatLng(cordinate.lat, cordinate.lng));

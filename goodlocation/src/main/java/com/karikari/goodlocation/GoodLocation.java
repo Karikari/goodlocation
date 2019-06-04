@@ -17,6 +17,12 @@ import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -30,17 +36,12 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResult;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.maps.android.SphericalUtil;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 public class GoodLocation implements LocationListener,
         GoogleApiClient.ConnectionCallbacks,
@@ -63,11 +64,12 @@ public class GoodLocation implements LocationListener,
     private Long DURATION = 0L;
     private FusedLocationProviderClient fusedLocationClient;
 
-
-
     private LocationManager mLocationManager;
 
     private CountDownTimer countDownTimer;
+
+    private Long LOCATION_INTERVAL = 5000L;
+    private Long FAST_LOCATON_INTERVAL = LOCATION_INTERVAL / 2;
 
     /**
      * Represents a geographical location.
@@ -91,8 +93,20 @@ public class GoodLocation implements LocationListener,
     private GoodLocationDurationListener mLocationDurationListener;
     private Context ctx;
 
+    public GoodLocation(Context context, Long location_interval){
+        LOCATION_INTERVAL = TimeUnit.SECONDS.toMillis(location_interval);
+        FAST_LOCATON_INTERVAL = LOCATION_INTERVAL / 2;
+        Log.d(TAG, "LOCATION INTERVAL "+ LOCATION_INTERVAL);
+        Log.d(TAG, "Fast LOCATION INTERVAL "+ FAST_LOCATON_INTERVAL);
+        initialize(context);
+
+    }
 
     public GoodLocation(Context context) {
+        initialize(context);
+    }
+
+    private void initialize(Context context){
         this.ctx = context;
         //step 1
         buildGoogleApiClient(context);
@@ -118,20 +132,26 @@ public class GoodLocation implements LocationListener,
 
         mLocationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
-        setSingleLocation();
-        //setGetLastKnownLocation();
+        //setSingleLocation();
+        setGetLastKnownLocation();
         //startAfter3secLastKnown();
-
     }
 
     @SuppressLint("MissingPermission")
-    private void setGetLastKnownLocation(){
-        fusedLocationClient.getLastLocation().addOnSuccessListener( new OnSuccessListener<Location>() {
+    private void setGetLastKnownLocation() {
+        fusedLocationClient.getLastLocation().addOnSuccessListener(new OnSuccessListener<Location>() {
             @Override
             public void onSuccess(Location location) {
-                if(location!=null){
+                if (location != null) {
                     mLastKnownLocation = location;
                 }
+            }
+        });
+
+        fusedLocationClient.getLastLocation().addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.d(TAG, "LastKnown Location failed :"+e.getMessage());
             }
         });
     }
@@ -163,7 +183,7 @@ public class GoodLocation implements LocationListener,
 
     public void startLocation(GoodLocationListener listener) {
         this.mLocationListener = listener;
-        startLocationUpdates();
+        startAfter3sec();
     }
 
     public void startDurationLocation(Long minutes, GoodLocationDurationListener listenerTime) {
@@ -173,7 +193,7 @@ public class GoodLocation implements LocationListener,
         startLocationTimer();
     }
 
-    public void stopDurationLocation(){
+    public void stopDurationLocation() {
         stopLocationUpdates();
         cancelTimer();
     }
@@ -227,8 +247,8 @@ public class GoodLocation implements LocationListener,
     //step 2
     private void createLocationRequest() {
         mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(5000);
-        mLocationRequest.setFastestInterval(1000);
+        mLocationRequest.setInterval(LOCATION_INTERVAL);
+        mLocationRequest.setFastestInterval(FAST_LOCATON_INTERVAL);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
     }
@@ -271,16 +291,16 @@ public class GoodLocation implements LocationListener,
                 Toast.makeText(ctx, e.getMessage(), Toast.LENGTH_LONG).show();
                 Log.d(TAG, "Detect Location error  :" + e.getMessage());
 
-                if(mLocationDurationListener!=null){
+                if (mLocationDurationListener != null) {
                     mLocationDurationListener.onError(e.getMessage());
                 }
 
-                if(mLocationListener!=null){
+                if (mLocationListener != null) {
                     mLocationListener.onError(e.getMessage());
                 }
 
             }
-        }else{
+        } else {
             Log.d(TAG, "google Client not Connected");
         }
     }
@@ -433,7 +453,29 @@ public class GoodLocation implements LocationListener,
         return gps_enabled;
     }
 
-    public void openLocationSettings(){
+    public boolean isLocationEnabled() {
+
+        LocationManager locationManager = null;
+        boolean gps_enabled = false;
+        try {
+            locationManager = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+            gps_enabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        } catch (Exception ex) {
+            //do nothing...
+        }
+
+        boolean network_enabled = false;
+        try {
+            locationManager = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+            network_enabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        } catch (Exception ex) {
+            //do nothing...
+        }
+
+        return gps_enabled || network_enabled;
+    }
+
+    public void openLocationSettings() {
         ctx.startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
     }
 
@@ -497,5 +539,6 @@ public class GoodLocation implements LocationListener,
 
         void onError(String error);
     }
+
 
 }
