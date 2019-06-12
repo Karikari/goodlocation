@@ -72,8 +72,12 @@
 
         boolean enabled = mGoodlocation.isLocationEnabled()
 
+**Open Location Settings**
+
+        mGoodlocation.openLocationSettings()
+
 **Get Last KnownLocation**
 
         Location location = mGoodlocation.getLastKnownLocation()
 
-**HAPPY CODING**
+**HAPPY CODING !!!**
