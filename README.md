@@ -76,4 +76,4 @@
 
         Location location = mGoodlocation.getLastKnownLocation()
 
-**Free Software, Hell Yeah!**
+**HAPPY CODING**
