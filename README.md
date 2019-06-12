@@ -2,7 +2,7 @@
 [![](https://jitpack.io/v/Karikari/goodlocation.svg)](https://jitpack.io/#Karikari/goodlocation)
 ### GoodLocation is a Location Library get a location updates for a period of time.
 ### Get Started
-`Add it to your gradle files`
+**Add it to your gradle files**
 
         (Project build.gradle)
         allprojects {
@@ -18,7 +18,7 @@
         	implementation 'com.github.Karikari:goodlocation:$current_version'
         }
 
-`Implementation`
+**Implementation**
 
         Instantiate the object
         GoodLocation mGoodLocation = GoodLocation(this)
