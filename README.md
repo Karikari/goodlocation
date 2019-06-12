@@ -46,7 +46,7 @@
                     Log.d(TAG, "Duration Error : "+ error);
                 }
             });
-**This location update can stop by calling**
+**This location update can be stoped by calling**
 
         mGoodlocation.stopDurationLacation()
 
