@@ -21,7 +21,7 @@
 **Implementation**
 ```java
         Instantiate the object
-        GoodLocation mGoodLocation = GoodLocation(this)
+        GoodLocation mGoodLocation = new GoodLocation(this)
 ```     
 **This code will update the location and stops after 2 minutes**
 ```java
