@@ -63,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }).build();*/
 
-        Log.d(TAG, "IS POLY CLOSED : "+ PolyUtil.isClosedPolygon(latLngs));
+        //Log.d(TAG, "IS POLY CLOSED : "+ PolyUtil.isClosedPolygon(latLngs));
 
         goodLocation.autoStartLocation(new GoodLocation.GoodLocationListener() {
             @Override
@@ -85,11 +85,11 @@ public class MainActivity extends AppCompatActivity {
 
         Location location= goodLocation.getLastKnownLocation();
 
-        if(location!=null){
+        /*if(location!=null){
             Log.d(TAG, "Lat : "+ location.getLatitude() + " Lng : "+ location.getLongitude());
         }else {
             Log.d(TAG, "Location is Null");
-        }
+        }*/
 
 
 
