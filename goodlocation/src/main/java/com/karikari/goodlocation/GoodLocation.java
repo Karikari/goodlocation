@@ -107,7 +107,7 @@ public class GoodLocation implements LocationListener,
     private void initialize(Context context){
         this.ctx = context;
         //step 1
-        buildGoogleApiClient(context);
+        buildGoogleApiClient(this.ctx);
 
         //step 2
         createLocationRequest();
@@ -116,20 +116,20 @@ public class GoodLocation implements LocationListener,
         buildLocationSettingsRequest();
 
         GoogleApiAvailability googleAPI = GoogleApiAvailability.getInstance();
-        int resultCode = googleAPI.isGooglePlayServicesAvailable(context);
+        int resultCode = googleAPI.isGooglePlayServicesAvailable(this.ctx);
         if (resultCode == ConnectionResult.SUCCESS) {
             mGoogleApiClient.connect();
             Log.i(TAG, "Building GoogleApiClient Connected");
 
         } else {
-            googleAPI.getErrorDialog((Activity) context, resultCode, 0);
+            googleAPI.getErrorDialog((Activity) this.ctx, resultCode, 0);
         }
 
         checkforpermissions();
 
 
-        mLocationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
+        mLocationManager = (LocationManager) this.ctx.getSystemService(Context.LOCATION_SERVICE);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this.ctx);
         setSingleLocation();
         //setGetLastKnownLocation();
         //startAfter3secLastKnown();
@@ -208,6 +208,13 @@ public class GoodLocation implements LocationListener,
     private void cancelTimer() {
         if (countDownTimer != null)
             countDownTimer.cancel();
+    }
+
+    // Prevents Memory Leaks
+    public void removeContext(){
+        if(this.ctx!=null){
+            this.ctx = null;
+        }
     }
 
 
