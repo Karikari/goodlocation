@@ -1,4 +1,4 @@
-package com.karikari.goodlocation;
+package com.karikari.good;
 
 import org.junit.Test;
 

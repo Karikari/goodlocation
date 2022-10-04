@@ -25,7 +25,7 @@
 ```     
 **This code will update the location and stops after 2 minutes**
 ```java
-       mGoodLocation.startDurationLocation(2L, new GoodLocation.GoodLocationDurationListener() {
+       mGoodLocation.startReadingDurationLocation(2L, new GoodLocation.GoodLocationDurationListener() {
                 @Override
                 public void onCurrentLocation(Location location) {
                     Log.d(TAG, "Location is Duration: "+ location.getLatitude() + ", "+ location.getLongitude());
@@ -53,7 +53,7 @@
 ```
 **This is for location update with no duration**
 ```java
-        mGoodlocation.startLocation(new GoodLocation.GoodLocationListener() {
+        mGoodlocation.startReadingLocation(new GoodLocation.GoodLocationListener() {
             @Override
             public void onCurrenLocation(Location location) {
                 Log.d(TAG, "Location is Auto: "+ location.getLatitude() + ", "+ location.getLongitude());
@@ -65,7 +65,7 @@
             }
         });
 ```
-**This can also be stoped by calling**
+**This can also be stopped by calling**
 ```java
         mGoodLocation.stopLocation()
 ```

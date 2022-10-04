@@ -2,7 +2,6 @@ package com.karikari.goodlocation;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -10,43 +9,41 @@ import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GoogleApiAvailability;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.LocationSettingsResponse;
 import com.google.android.gms.location.LocationSettingsResult;
+import com.google.android.gms.location.Priority;
+import com.google.android.gms.location.SettingsClient;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.maps.android.SphericalUtil;
+import com.karikari.goodlocation.interfaces.GoodLocationDurationListener;
+import com.karikari.goodlocation.interfaces.GoodLocationListener;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class GoodLocation implements LocationListener,
-        GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener,
-        ResultCallback<LocationSettingsResult> {
+public class GoodLocation {
 
     private static final String TAG = GoodLocation.class.getSimpleName();
 
@@ -57,12 +54,11 @@ public class GoodLocation implements LocationListener,
 
     private static final int REQUEST_ALL_PERMISSIONS = 1;
 
-
     private LocationRequest mLocationRequest;
-    private GoogleApiClient mGoogleApiClient;
-    private LocationSettingsRequest mLocationSettingsRequest;
     private Long DURATION = 0L;
     private FusedLocationProviderClient fusedLocationClient;
+
+    private LocationCallback locationCallback;
 
     private LocationManager mLocationManager;
 
@@ -71,30 +67,15 @@ public class GoodLocation implements LocationListener,
     private Long LOCATION_INTERVAL = 5000L;
     private Long FAST_LOCATION_INTERVAL = LOCATION_INTERVAL / 2;
 
-    /**
-     * Represents a geographical location.
-     */
-    private Location mCurrentLocation;
 
     private Location mLastKnownLocation;
-
-    /**
-     * Tracks the status of the location updates request. Value changes when the boy presses the
-     * Start Updates and Stop Updates buttons.
-     */
-    private Boolean mRequestingLocationUpdates = false;
-
-    /**
-     * Time when the location was updated represented as a String.
-     */
-    protected String mLastUpdateTime;
 
     private GoodLocationListener mLocationListener;
     private GoodLocationDurationListener mLocationDurationListener;
     private Context ctx;
 
-    public GoodLocation(Context context, Long location_interval){
-        LOCATION_INTERVAL = TimeUnit.SECONDS.toMillis(location_interval);
+    public GoodLocation(Context context, Long locationInterval) {
+        LOCATION_INTERVAL = TimeUnit.SECONDS.toMillis(locationInterval);
         FAST_LOCATION_INTERVAL = LOCATION_INTERVAL / 2;
         initialize(context);
 
@@ -104,35 +85,20 @@ public class GoodLocation implements LocationListener,
         initialize(context);
     }
 
-    private void initialize(Context context){
+    private void initialize(Context context) {
         this.ctx = context;
-        //step 1
-        buildGoogleApiClient(this.ctx);
 
         //step 2
         createLocationRequest();
-
         // step 3
         buildLocationSettingsRequest();
 
-        GoogleApiAvailability googleAPI = GoogleApiAvailability.getInstance();
-        int resultCode = googleAPI.isGooglePlayServicesAvailable(this.ctx);
-        if (resultCode == ConnectionResult.SUCCESS) {
-            mGoogleApiClient.connect();
-            Log.i(TAG, "Building GoogleApiClient Connected");
-
-        } else {
-            googleAPI.getErrorDialog((Activity) this.ctx, resultCode, 0);
-        }
-
-        checkforpermissions();
-
+        checkForPermissions();
 
         mLocationManager = (LocationManager) this.ctx.getSystemService(Context.LOCATION_SERVICE);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this.ctx);
-        setSingleLocation();
-        //setGetLastKnownLocation();
-        //startAfter3secLastKnown();
+        // setSingleLocation();
+        setGetLastKnownLocation();
     }
 
     @SuppressLint("MissingPermission")
@@ -149,43 +115,38 @@ public class GoodLocation implements LocationListener,
         fusedLocationClient.getLastLocation().addOnFailureListener(new OnFailureListener() {
             @Override
             public void onFailure(@NonNull Exception e) {
-                Log.d(TAG, "LastKnown Location failed :"+e.getMessage());
+                Log.d(TAG, "LastKnown Location failed :" + e.getMessage());
             }
         });
     }
 
-
-    private void startAfter3secLastKnown() {
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                setGetLastKnownLocation();
-            }
-        }, 3000);
+    private void startReadingLocation(){
+        startLocationUpdates();
     }
 
 
-    private void startAfter3sec() {
+    private void startReadingLocationWithDelay(Long duration) {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
                 startLocationUpdates();
             }
-        }, 3000);
+        }, duration);
     }
 
 
     public void autoStartLocation(GoodLocationListener listener) {
         this.mLocationListener = listener;
-        startAfter3sec();
+        startReadingLocation();
     }
 
-    public void startLocation(GoodLocationListener listener) {
+
+    public void startReadingLocation(GoodLocationListener listener) {
         this.mLocationListener = listener;
-        startAfter3sec();
+        startReadingLocation();
     }
 
-    public void startDurationLocation(Long minutes, GoodLocationDurationListener listenerTime) {
+    public void startReadingDurationLocation(Long minutes, GoodLocationDurationListener listenerTime) {
         this.DURATION = TimeUnit.MINUTES.toMillis(minutes);
         this.mLocationDurationListener = listenerTime;
         startLocationUpdates();
@@ -197,224 +158,88 @@ public class GoodLocation implements LocationListener,
         cancelTimer();
     }
 
-    public void stopLocation() {
-        stopLocationUpdates();
-    }
-
-    public void stopTimer() {
-        cancelTimer();
-    }
-
     private void cancelTimer() {
         if (countDownTimer != null)
             countDownTimer.cancel();
     }
 
     // Prevents Memory Leaks
-    public void removeContext(){
-        if(this.ctx!=null){
+    public void removeContext() {
+        if (this.ctx != null) {
             this.ctx = null;
         }
     }
-
-
-    public boolean isLocationUpdateRunning() {
-        return this.mRequestingLocationUpdates;
-    }
-
-    public Location getLastUpdateLocation() {
-        return this.mCurrentLocation;
-    }
-
 
     public Location getLastKnownLocation() {
         return this.mLastKnownLocation;
     }
 
-    public Long getmLastUpdateTime() {
-        return this.mCurrentLocation.getTime();
+    public Long getLastUpdateTime() {
+        return this.mLastKnownLocation.getTime();
     }
 
     public void setLocationDuration(Long minutes) {
         this.DURATION = TimeUnit.MINUTES.toMillis(minutes);
     }
 
-    //step 1
-    private synchronized void buildGoogleApiClient(Context context) {
-        Log.i(TAG, "Building GoogleApiClient");
-        mGoogleApiClient = new GoogleApiClient.Builder(context)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(LocationServices.API)
-                .build();
-        mGoogleApiClient.connect();
-    }
-
     //step 2
     private void createLocationRequest() {
-        mLocationRequest = new LocationRequest();
+        mLocationRequest = LocationRequest.create();
         mLocationRequest.setInterval(LOCATION_INTERVAL);
         mLocationRequest.setFastestInterval(FAST_LOCATION_INTERVAL);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-
+        mLocationRequest.setPriority(Priority.PRIORITY_HIGH_ACCURACY);
     }
 
     //step 3
     private void buildLocationSettingsRequest() {
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
-        builder.addLocationRequest(mLocationRequest);
-        mLocationSettingsRequest = builder.build();
+        SettingsClient client = LocationServices.getSettingsClient(this.ctx);
+        Task<LocationSettingsResponse> task = client.checkLocationSettings(builder.build());
+        task.addOnSuccessListener(new OnSuccessListener<LocationSettingsResponse>() {
+            @Override
+            public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
+                Log.d(TAG, "LocationSettings Response is Location Present? "+locationSettingsResponse.getLocationSettingsStates().isLocationPresent());
+                Log.d(TAG, "LocationSettings is GPS Available is "+locationSettingsResponse.getLocationSettingsStates().isGpsPresent());
+                Log.d(TAG, "LocationSettings is Location Usable is "+locationSettingsResponse.getLocationSettingsStates().isLocationUsable());
+            }
+        });
     }
 
-
-    //step 4
-    private void checkLocationSettings() {
-        PendingResult<LocationSettingsResult> result = LocationServices.SettingsApi.checkLocationSettings(
-                mGoogleApiClient,
-                mLocationSettingsRequest
-        );
-        result.setResultCallback(this);
-    }
 
 
     @SuppressLint("MissingPermission")
     private void startLocationUpdates() {
-        Log.d(TAG, "Go and Detection Location Started :");
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(@NonNull LocationResult locationResult) {
+                for (Location location : locationResult.getLocations()) {
+                    if (mLocationListener != null) {
+                        mLocationListener.onCurrentLocation(location);
+                    }
 
-        if (mGoogleApiClient.isConnected()) {
-            try {
-                LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this)
-                        .setResultCallback(new ResultCallback<Status>() {
-                            @Override
-                            public void onResult(Status status) {
-                                mRequestingLocationUpdates = true;
-                                //     setButtonsEnabledState();
-                                Log.d(TAG, "Go and Detection Location :" + status.isSuccess());
-
-                            }
-                        });
-            } catch (Exception e) {
-                Toast.makeText(ctx, e.getMessage(), Toast.LENGTH_LONG).show();
-                Log.d(TAG, "Detect Location error  :" + e.getMessage());
-
-                if (mLocationDurationListener != null) {
-                    mLocationDurationListener.onError(e.getMessage());
+                    if (mLocationDurationListener != null) {
+                        Log.d(TAG, location.getLatitude() + "," + location.getLongitude() + "," + location.getAccuracy());
+                        mLocationDurationListener.onCurrentLocation(location);
+                    }
                 }
-
-                if (mLocationListener != null) {
-                    mLocationListener.onError(e.getMessage());
-                }
-
             }
-        } else {
-            Log.d(TAG, "google Client not Connected");
-            if (mLocationDurationListener != null) {
-                mLocationDurationListener.onError("Google Client Connection Failed");
-            }
-
-            if (mLocationListener != null) {
-                mLocationListener.onError("Google Client Connection Failed");
-            }
-        }
+        };
+        fusedLocationClient.requestLocationUpdates(
+                mLocationRequest,
+                locationCallback,
+                Looper.getMainLooper()
+        );
     }
 
     /**
      * Removes location updates from the FusedLocationApi.
      */
-    private void stopLocationUpdates() {
-
-        if (mGoogleApiClient.isConnected()) {
-            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this
-            ).setResultCallback(new ResultCallback<Status>() {
-                @Override
-                public void onResult(Status status) {
-                    mRequestingLocationUpdates = false;
-                    //   setButtonsEnabledState();
-                    checkLocationSettings();
-                }
-            });
-        }
+    private void removeLocationUpdates(){
+        fusedLocationClient.removeLocationUpdates(locationCallback);
     }
 
-    @SuppressLint("MissingPermission")
-    @Override
-    public void onConnected(@Nullable Bundle bundle) {
-        if (mLastKnownLocation == null) {
-            mLastKnownLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-        }
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
-        Log.i(TAG, "Connection failed: ConnectionResult.getErrorCode() = " + connectionResult.getErrorCode());
-
-    }
-
-    @Override
-    public void onResult(@NonNull LocationSettingsResult locationSettingsResult) {
-
-    }
-
-    @Override
-    public void onLocationChanged(Location location) {
-        mCurrentLocation = location;
-        if (mLocationListener != null) {
-            mLocationListener.onCurrenLocation(location);
-        }
-
-        if (mLocationDurationListener != null) {
-            Log.d(TAG, location.getLatitude() + "," + location.getLongitude() + "," + location.getAccuracy());
-            mLocationDurationListener.onCurrentLocation(location);
-        }
-    }
-
-
-    private void setSingleLocation() {
-
-        List<String> providers = mLocationManager.getProviders(true);
-        Location location = null;
-
-        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-
-            ActivityCompat.requestPermissions(((AppCompatActivity) ctx), new String[]
-                            {Manifest.permission.ACCESS_COARSE_LOCATION},
-                    0);
-        }
-
-
-        boolean isNetworkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-        if (isNetworkEnabled) {
-            Criteria criteria = new Criteria();
-            criteria.setAccuracy(Criteria.ACCURACY_COARSE);
-            for (String s : providers) {
-                location = mLocationManager.getLastKnownLocation(s);
-                if (location != null) {
-                    mLastKnownLocation = location;
-                    break;
-                }
-            }
-
-        }
-
-        boolean isGPSEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        if (isGPSEnabled) {
-            Criteria criteria = new Criteria();
-            criteria.setAccuracy(Criteria.ACCURACY_FINE);
-            for (String s : providers) {
-                location = mLocationManager.getLastKnownLocation(s);
-                if (location != null) {
-                    mLastKnownLocation = location;
-                    break;
-                }
-
-            }
-        }
+    public void stopLocationUpdates() {
+        removeLocationUpdates();
     }
 
     public float distance(double startLatitude, double startLongitude) {
@@ -442,56 +267,37 @@ public class GoodLocation implements LocationListener,
 
     public boolean isLocationEnabledGPS() {
         LocationManager locationManager = null;
-        boolean gps_enabled = false;
+        boolean gpsEnabled = false;
         try {
             locationManager = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
-            gps_enabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+            gpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
         } catch (Exception ex) {
             //do nothing...
         }
 
-        return gps_enabled;
+        return gpsEnabled;
     }
 
     public boolean isLocationEnabledNetWork() {
         LocationManager locationManager = null;
-        boolean gps_enabled = false;
+        boolean gpsEnabled = false;
         try {
             locationManager = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
-            gps_enabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+            gpsEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
         } catch (Exception ex) {
             //do nothing...
         }
 
-        return gps_enabled;
+        return gpsEnabled;
     }
 
     public boolean isLocationEnabled() {
-
-        LocationManager locationManager = null;
-        boolean gps_enabled = false;
-        try {
-            locationManager = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
-            gps_enabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        } catch (Exception ex) {
-            //do nothing...
-        }
-
-        boolean network_enabled = false;
-        try {
-            locationManager = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
-            network_enabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-        } catch (Exception ex) {
-            //do nothing...
-        }
-
-        return gps_enabled || network_enabled;
+        return isLocationEnabledGPS() || isLocationEnabledNetWork();
     }
 
     public void openLocationSettings() {
         ctx.startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
     }
-
 
     private void startLocationTimer() {
         if (DURATION != 0) {
@@ -517,11 +323,10 @@ public class GoodLocation implements LocationListener,
         }
     }
 
-    private void checkforpermissions() {
+    private void checkForPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             for (String PERMISSION : PERMISSIONS) {
                 Log.i(TAG, "Permission :" + PERMISSION);
-
                 int permission = ContextCompat.checkSelfPermission(ctx, PERMISSION);
 
                 if (permission != PackageManager.PERMISSION_GRANTED) {
@@ -534,23 +339,6 @@ public class GoodLocation implements LocationListener,
 
     private void makeRequest() {
         ActivityCompat.requestPermissions(((AppCompatActivity) ctx), PERMISSIONS, REQUEST_ALL_PERMISSIONS);
-    }
-
-
-    public interface GoodLocationListener {
-        void onCurrenLocation(Location location);
-
-        void onError(String error);
-    }
-
-    public interface GoodLocationDurationListener {
-        void onCurrentLocation(Location location);
-
-        void onDurationLeft(Long time_left);
-
-        void onDurationFinished();
-
-        void onError(String error);
     }
 
 
