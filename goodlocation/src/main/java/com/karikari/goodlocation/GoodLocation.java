@@ -74,6 +74,8 @@ public class GoodLocation {
     private GoodLocationDurationListener mLocationDurationListener;
     private Context ctx;
 
+    private boolean permissionsGranted = true;
+
     public GoodLocation(Context context, Long locationInterval) {
         LOCATION_INTERVAL = TimeUnit.SECONDS.toMillis(locationInterval);
         FAST_LOCATION_INTERVAL = LOCATION_INTERVAL / 2;
@@ -176,6 +178,10 @@ public class GoodLocation {
 
     public Long getLastUpdateTime() {
         return this.mLastKnownLocation.getTime();
+    }
+
+    public boolean isPermissionsGranted(){
+        return this.permissionsGranted;
     }
 
     public void setLocationDuration(Long minutes) {
@@ -326,11 +332,10 @@ public class GoodLocation {
     private void checkForPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             for (String PERMISSION : PERMISSIONS) {
-                Log.i(TAG, "Permission :" + PERMISSION);
                 int permission = ContextCompat.checkSelfPermission(ctx, PERMISSION);
-
                 if (permission != PackageManager.PERMISSION_GRANTED) {
-                    Log.i(TAG, "Permission " + PERMISSION + " is denied");
+                    Log.d(TAG, "Permission " + PERMISSION + " is denied");
+                    permissionsGranted = false;
                     makeRequest();
                 }
             }

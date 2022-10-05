@@ -24,6 +24,8 @@ public class MainActivity extends AppCompatActivity {
 
         goodLocation = new GoodLocation(this);
 
+        Log.d(TAG, "Permissions Granted... "+goodLocation.isPermissionsGranted());
+
         if (!goodLocation.isLocationEnabled()){
             MessageBox.showMessageOK(
                     this,
