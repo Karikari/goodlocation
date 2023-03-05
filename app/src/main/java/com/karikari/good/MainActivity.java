@@ -1,5 +1,9 @@
 package com.karikari.good;
 
+import static com.karikari.goodlocation.GoodLocation.APPROXIMATE;
+import static com.karikari.goodlocation.GoodLocation.PRECISE;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.location.Location;
@@ -22,7 +26,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        goodLocation = new GoodLocation(this);
+        goodLocation = new GoodLocation(this, PRECISE);
 
         if (!goodLocation.isLocationEnabled()){
             MessageBox.showMessageOK(
@@ -47,6 +51,12 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        Log.d(TAG, "Request Code " + requestCode + "Granted result is "+ grantResults[0]);
     }
 
     @Override

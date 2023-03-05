@@ -1,11 +1,12 @@
 package com.karikari.goodlocation;
 
-import android.Manifest;
+import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
+import static android.Manifest.permission.ACCESS_FINE_LOCATION;
+
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
@@ -13,6 +14,7 @@ import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -20,16 +22,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResponse;
-import com.google.android.gms.location.LocationSettingsResult;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.location.SettingsClient;
 import com.google.android.gms.maps.model.LatLng;
@@ -40,7 +39,6 @@ import com.google.maps.android.SphericalUtil;
 import com.karikari.goodlocation.interfaces.GoodLocationDurationListener;
 import com.karikari.goodlocation.interfaces.GoodLocationListener;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class GoodLocation {
@@ -48,9 +46,18 @@ public class GoodLocation {
     private static final String TAG = GoodLocation.class.getSimpleName();
 
     String[] PERMISSIONS = {
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            ACCESS_COARSE_LOCATION,
+            ACCESS_FINE_LOCATION
     };
+
+    String[] COARSE_PERMISSION = { ACCESS_COARSE_LOCATION };
+
+    String[] FINE_PERMISSION = { ACCESS_FINE_LOCATION };
+
+    public static final String APPROXIMATE = "Approximate";
+    public static final String PRECISE = "Precise";
+    public static final String ALL = "All";
+
 
     private static final int REQUEST_ALL_PERMISSIONS = 1;
 
@@ -79,23 +86,34 @@ public class GoodLocation {
     public GoodLocation(Context context, Long locationInterval) {
         LOCATION_INTERVAL = TimeUnit.SECONDS.toMillis(locationInterval);
         FAST_LOCATION_INTERVAL = LOCATION_INTERVAL / 2;
-        initialize(context);
+        initialize(context, ALL);
 
     }
 
     public GoodLocation(Context context) {
-        initialize(context);
+        initialize(context, ALL);
     }
 
-    private void initialize(Context context) {
+    public GoodLocation(Context context, String locationType) {
+        initialize(context, locationType);
+    }
+
+    private void initialize(Context context, String locationType) {
         this.ctx = context;
+
+        if (TextUtils.equals(locationType, PRECISE)){
+            checkForLocationFinePermissions();
+        } else if (TextUtils.equals(locationType, APPROXIMATE)) {
+            checkForLocationCoursePermissions();
+        } else {
+            checkForPermissions();
+        }
 
         //step 2
         createLocationRequest();
+
         // step 3
         buildLocationSettingsRequest();
-
-        checkForPermissions();
 
         mLocationManager = (LocationManager) this.ctx.getSystemService(Context.LOCATION_SERVICE);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this.ctx);
@@ -122,7 +140,7 @@ public class GoodLocation {
         });
     }
 
-    private void startReadingLocation(){
+    private void startReadingLocation() {
         startLocationUpdates();
     }
 
@@ -180,7 +198,7 @@ public class GoodLocation {
         return this.mLastKnownLocation.getTime();
     }
 
-    public boolean isPermissionsGranted(){
+    public boolean isPermissionsGranted() {
         return this.permissionsGranted;
     }
 
@@ -204,13 +222,13 @@ public class GoodLocation {
         task.addOnSuccessListener(new OnSuccessListener<LocationSettingsResponse>() {
             @Override
             public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
-                Log.d(TAG, "LocationSettings Response is Location Present? "+locationSettingsResponse.getLocationSettingsStates().isLocationPresent());
-                Log.d(TAG, "LocationSettings is GPS Available is "+locationSettingsResponse.getLocationSettingsStates().isGpsPresent());
-                Log.d(TAG, "LocationSettings is Location Usable is "+locationSettingsResponse.getLocationSettingsStates().isLocationUsable());
+                Log.d(TAG, "LocationSettings Response is Location Present? " + locationSettingsResponse.getLocationSettingsStates().isLocationPresent());
+                Log.d(TAG, "LocationSettings is GPS Available is " + locationSettingsResponse.getLocationSettingsStates().isGpsPresent());
+                Log.d(TAG, "LocationSettings is Location Usable is " + locationSettingsResponse.getLocationSettingsStates().isLocationUsable());
             }
         });
-    }
 
+    }
 
 
     @SuppressLint("MissingPermission")
@@ -240,7 +258,7 @@ public class GoodLocation {
     /**
      * Removes location updates from the FusedLocationApi.
      */
-    private void removeLocationUpdates(){
+    private void removeLocationUpdates() {
         fusedLocationClient.removeLocationUpdates(locationCallback);
     }
 
@@ -285,7 +303,7 @@ public class GoodLocation {
     }
 
     public boolean isLocationEnabledNetWork() {
-        LocationManager locationManager = null;
+        LocationManager locationManager;
         boolean gpsEnabled = false;
         try {
             locationManager = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
@@ -334,12 +352,42 @@ public class GoodLocation {
             for (String PERMISSION : PERMISSIONS) {
                 int permission = ContextCompat.checkSelfPermission(ctx, PERMISSION);
                 if (permission != PackageManager.PERMISSION_GRANTED) {
-                    Log.d(TAG, "Permission " + PERMISSION + " is denied");
                     permissionsGranted = false;
                     makeRequest();
                 }
             }
         }
+    }
+
+    private void checkForLocationFinePermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            int permission = ContextCompat.checkSelfPermission(ctx, ACCESS_FINE_LOCATION);
+            if (permission != PackageManager.PERMISSION_GRANTED) {
+                permissionsGranted = false;
+                ActivityCompat.requestPermissions(((AppCompatActivity) ctx), FINE_PERMISSION, REQUEST_ALL_PERMISSIONS);
+
+            }
+
+        }
+    }
+
+    private void checkForLocationCoursePermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            int permission = ContextCompat.checkSelfPermission(ctx, ACCESS_COARSE_LOCATION);
+            if (permission != PackageManager.PERMISSION_GRANTED) {
+                permissionsGranted = false;
+                ActivityCompat.requestPermissions(((AppCompatActivity) ctx), COARSE_PERMISSION, REQUEST_ALL_PERMISSIONS);
+
+            }
+        }
+    }
+
+    public boolean checkIfCoarsePermissionGranted(){
+        return ContextCompat.checkSelfPermission(ctx, ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public boolean checkIfFinePermissionGranted(){
+        return ContextCompat.checkSelfPermission(ctx, ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
     private void makeRequest() {
