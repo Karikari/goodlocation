@@ -50,13 +50,15 @@ public class GoodLocation {
             ACCESS_FINE_LOCATION
     };
 
-    String[] COARSE_PERMISSION = { ACCESS_COARSE_LOCATION };
+    String[] COARSE_PERMISSION = {ACCESS_COARSE_LOCATION};
 
-    String[] FINE_PERMISSION = { ACCESS_FINE_LOCATION };
+    String[] FINE_PERMISSION = {ACCESS_FINE_LOCATION};
 
     public static final String APPROXIMATE = "Approximate";
     public static final String PRECISE = "Precise";
     public static final String ALL = "All";
+
+    public static final String NONE = "None";
 
 
     private static final int REQUEST_ALL_PERMISSIONS = 1;
@@ -72,13 +74,15 @@ public class GoodLocation {
     private CountDownTimer countDownTimer;
 
     private Long LOCATION_INTERVAL = 5000L;
-    private Long FAST_LOCATION_INTERVAL = LOCATION_INTERVAL / 2;
 
+    private Long FAST_LOCATION_INTERVAL = LOCATION_INTERVAL / 2;
 
     private Location mLastKnownLocation;
 
     private GoodLocationListener mLocationListener;
+
     private GoodLocationDurationListener mLocationDurationListener;
+
     private Context ctx;
 
     private boolean permissionsGranted = true;
@@ -87,7 +91,6 @@ public class GoodLocation {
         LOCATION_INTERVAL = TimeUnit.SECONDS.toMillis(locationInterval);
         FAST_LOCATION_INTERVAL = LOCATION_INTERVAL / 2;
         initialize(context, ALL);
-
     }
 
     public GoodLocation(Context context) {
@@ -101,12 +104,14 @@ public class GoodLocation {
     private void initialize(Context context, String locationType) {
         this.ctx = context;
 
-        if (TextUtils.equals(locationType, PRECISE)){
+        if (TextUtils.equals(locationType, PRECISE)) {
             checkForLocationFinePermissions();
         } else if (TextUtils.equals(locationType, APPROXIMATE)) {
             checkForLocationCoursePermissions();
-        } else {
+        } else if (TextUtils.equals(locationType, ALL)) {
             checkForPermissions();
+        } else {
+            Log.d(TAG, "No Permission");
         }
 
         //step 2
@@ -347,12 +352,11 @@ public class GoodLocation {
         }
     }
 
-    private void checkForPermissions() {
+    public void checkForPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             for (String PERMISSION : PERMISSIONS) {
                 int permission = ContextCompat.checkSelfPermission(ctx, PERMISSION);
                 if (permission != PackageManager.PERMISSION_GRANTED) {
-                    permissionsGranted = false;
                     makeRequest();
                 }
             }
@@ -363,11 +367,9 @@ public class GoodLocation {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             int permission = ContextCompat.checkSelfPermission(ctx, ACCESS_FINE_LOCATION);
             if (permission != PackageManager.PERMISSION_GRANTED) {
-                permissionsGranted = false;
                 ActivityCompat.requestPermissions(((AppCompatActivity) ctx), FINE_PERMISSION, REQUEST_ALL_PERMISSIONS);
 
             }
-
         }
     }
 
@@ -375,19 +377,31 @@ public class GoodLocation {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             int permission = ContextCompat.checkSelfPermission(ctx, ACCESS_COARSE_LOCATION);
             if (permission != PackageManager.PERMISSION_GRANTED) {
-                permissionsGranted = false;
                 ActivityCompat.requestPermissions(((AppCompatActivity) ctx), COARSE_PERMISSION, REQUEST_ALL_PERMISSIONS);
-
             }
         }
     }
 
-    public boolean checkIfCoarsePermissionGranted(){
+    public boolean checkIfCoarsePermissionGranted() {
         return ContextCompat.checkSelfPermission(ctx, ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
-    public boolean checkIfFinePermissionGranted(){
+    public boolean checkIfFinePermissionGranted() {
         return ContextCompat.checkSelfPermission(ctx, ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public boolean checkIfLocationPermissionGranted() {
+        boolean isPermissionGranted = true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            for (String PERM : PERMISSIONS) {
+                int permission = ContextCompat.checkSelfPermission(ctx, PERM);
+                if (permission != PackageManager.PERMISSION_GRANTED){
+                    isPermissionGranted = false;
+                }
+
+            }
+        }
+        return isPermissionGranted;
     }
 
     private void makeRequest() {

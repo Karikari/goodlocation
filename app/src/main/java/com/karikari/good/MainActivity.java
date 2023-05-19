@@ -26,7 +26,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        goodLocation = new GoodLocation(this, PRECISE);
+        goodLocation = new GoodLocation(this, "");
 
         if (!goodLocation.isLocationEnabled()){
             MessageBox.showMessageOK(
@@ -36,6 +36,12 @@ public class MainActivity extends AppCompatActivity {
                         goodLocation.openLocationSettings();
                     }
             );
+            return;
+        }
+
+        if (!goodLocation.checkIfLocationPermissionGranted()){
+            goodLocation.checkForPermissions();
+
             return;
         }
 
@@ -56,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        Log.d(TAG, "Request Code " + requestCode + "Granted result is "+ grantResults[0]);
+       //  Log.d(TAG, "Request Code " + requestCode + "Granted result is "+ grantResults[0]);
     }
 
     @Override
