@@ -267,7 +267,9 @@ public class GoodLocation {
      * Removes location updates from the FusedLocationApi.
      */
     private void removeLocationUpdates() {
-        fusedLocationClient.removeLocationUpdates(locationCallback);
+        if (locationCallback != null) {
+            fusedLocationClient.removeLocationUpdates(locationCallback);
+        }
     }
 
     public void stopLocationUpdates() {
@@ -399,7 +401,7 @@ public class GoodLocation {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             for (String PERM : PERMISSIONS) {
                 int permission = ContextCompat.checkSelfPermission(ctx, PERM);
-                if (permission != PackageManager.PERMISSION_GRANTED){
+                if (permission != PackageManager.PERMISSION_GRANTED) {
                     isPermissionGranted = false;
                 }
 
@@ -412,7 +414,7 @@ public class GoodLocation {
         ActivityCompat.requestPermissions(((AppCompatActivity) ctx), PERMISSIONS, REQUEST_ALL_PERMISSIONS);
     }
 
-    public boolean isLocationUpdateRunning(){
+    public boolean isLocationUpdateRunning() {
         return locationUpdateRunning;
     }
 
