@@ -87,6 +87,8 @@ public class GoodLocation {
 
     private boolean permissionsGranted = true;
 
+    private boolean locationUpdateRunning = false;
+
     public GoodLocation(Context context, Long locationInterval) {
         LOCATION_INTERVAL = TimeUnit.SECONDS.toMillis(locationInterval);
         FAST_LOCATION_INTERVAL = LOCATION_INTERVAL / 2;
@@ -241,6 +243,7 @@ public class GoodLocation {
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(@NonNull LocationResult locationResult) {
+                locationUpdateRunning = true;
                 for (Location location : locationResult.getLocations()) {
                     if (mLocationListener != null) {
                         mLocationListener.onCurrentLocation(location);
@@ -268,6 +271,7 @@ public class GoodLocation {
     }
 
     public void stopLocationUpdates() {
+        locationUpdateRunning = false;
         removeLocationUpdates();
     }
 
@@ -408,5 +412,8 @@ public class GoodLocation {
         ActivityCompat.requestPermissions(((AppCompatActivity) ctx), PERMISSIONS, REQUEST_ALL_PERMISSIONS);
     }
 
+    public boolean isLocationUpdateRunning(){
+        return locationUpdateRunning;
+    }
 
 }
